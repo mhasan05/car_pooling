@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.utils.translation import gettext_lazy as _
 
+
 # Custom User Manager
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -16,28 +17,36 @@ class CustomUserManager(BaseUserManager):
     def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
+
+        if not extra_fields.get('is_staff'):
+            raise ValueError(_('Superuser must have is_staff=True.'))
+        if not extra_fields.get('is_superuser'):
+            raise ValueError(_('Superuser must have is_superuser=True.'))
+
         return self.create_user(email, password, **extra_fields)
+
 
 # Custom User Model
 class User(AbstractBaseUser, PermissionsMixin):
     ROLE_CHOICES = [
-        ('Parent', 'Parent'),
-        ('Admin', 'Admin'),
-        ('Driver', 'Driver'),
+        ('Parent', _('Parent')),
+        ('Admin', _('Admin')),
+        ('Driver', _('Driver')),
     ]
     SUBSCRIPTION_PLAN_CHOICES = [
-        ('Basic', 'Basic'),
-        ('Premium', 'Premium'),
+        ('Basic', _('Basic')),
+        ('Premium', _('Premium')),
     ]
 
-    email = models.EmailField(unique=True)
-    full_name = models.CharField(max_length=255)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='Parent')
-    subscription_plan = models.CharField(max_length=10, choices=SUBSCRIPTION_PLAN_CHOICES, default='Basic')
-    profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True)
-    contact_number = models.CharField(max_length=20, blank=True, null=True)
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
+    email = models.EmailField(_('email address'), unique=True)
+    full_name = models.CharField(_('full name'), max_length=255)
+    role = models.CharField(_('role'), max_length=20, choices=ROLE_CHOICES, default='Parent')
+    subscription_plan = models.CharField(_('subscription plan'), max_length=10, choices=SUBSCRIPTION_PLAN_CHOICES, default='Basic')
+    profile_picture = models.ImageField(_('profile picture'), upload_to='profile_pictures/', blank=True, null=True)
+    contact_number = models.CharField(_('contact number'), max_length=20, blank=True, null=True)
+    total_rides = models.PositiveIntegerField(_('total rides'), default=0)
+    is_active = models.BooleanField(_('active'), default=True)
+    is_staff = models.BooleanField(_('staff status'), default=False)
 
     objects = CustomUserManager()
 
@@ -47,103 +56,127 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.email
 
+
 # Vehicle Model
 class Vehicle(models.Model):
-    VEHICLE_TYPE = [
-        ('Car', 'Car'),
-        ('SUV', 'SUV'),
-        ('Truck', 'Truck'),
-        ('Van', 'Van'),
+    VEHICLE_TYPE_CHOICES = [
+        ('Car', _('Car')),
+        ('SUV', _('SUV')),
+        ('Truck', _('Truck')),
+        ('Van', _('Van')),
     ]
-    COLOR = [
-        ('Red', 'Red'),
-        ('Blue', 'Blue'),
-        ('Green', 'Green'),
-        ('Black', 'Black'),
-        ('White', 'White'),
-        ('Yellow', 'Yellow'),
-        ('Brown', 'Brown'),
-        ('Orange', 'Orange'),
-        ('Purple', 'Purple'),
-        ('Gold', 'Gold'),
-        ('Beige', 'Beige'),
-        ('Maroon', 'Maroon'),
+    COLOR_CHOICES = [
+        ('Red', _('Red')), ('Blue', _('Blue')), ('Green', _('Green')),
+        ('Black', _('Black')), ('White', _('White')), ('Yellow', _('Yellow')),
+        ('Brown', _('Brown')), ('Orange', _('Orange')), ('Purple', _('Purple')),
+        ('Gold', _('Gold')), ('Beige', _('Beige')), ('Maroon', _('Maroon')),
     ]
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vehicles')
-    make_model = models.CharField(max_length=200)
-    color = models.CharField(max_length=20, choices=COLOR)
-    vehicle_type = models.CharField(max_length=20, choices=VEHICLE_TYPE)
-    seats = models.PositiveIntegerField()
-    license_plate = models.CharField(max_length=50, unique=True, blank=True, null=True)
-    
+    make_model = models.CharField(_('make and model'), max_length=200)
+    color = models.CharField(_('color'), max_length=20, choices=COLOR_CHOICES)
+    vehicle_type = models.CharField(_('vehicle type'), max_length=20, choices=VEHICLE_TYPE_CHOICES)
+    seats = models.PositiveIntegerField(_('seating capacity'))
+    license_plate = models.CharField(_('license plate'), max_length=50, unique=True, blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.make_model} ({self.license_plate})" 
+
 
 # Pool Model
 class Pool(models.Model):
-    pool_name = models.CharField(max_length=255)
-    departure_location = models.CharField(max_length=255)
-    arrival_location = models.CharField(max_length=255, blank=True, null=True)
-    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name='pools', blank=True, null=True)
+    REPEAT_CHOICES = [
+        ('DoNotRepeat', _('Do not repeat')),
+        ('Daily', _('Daily')),
+        ('Weekly', _('Weekly')),
+        ('Custom', _('Custom')),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pools_created')
+    name = models.CharField(_('pool name'), max_length=255)
+    departure_location = models.CharField(_('departure location'), max_length=255)
+    arrival_location = models.CharField(_('arrival location'), max_length=255, blank=True, null=True)
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.SET_NULL, related_name='pools', blank=True, null=True)
+    repeat_type = models.CharField(_('repeat type'), max_length=20, choices=REPEAT_CHOICES, default='DoNotRepeat')
+    scheduled_days = models.CharField(
+        _('scheduled days'), max_length=255, 
+        help_text=_("Comma-separated days of the week (e.g., Mon,Tue,Wed)"), 
+        blank=True, null=True
+    )
     start_date = models.DateField(auto_now_add=True)
     start_time = models.TimeField(auto_now_add=True)
-    scheduled_days = models.CharField(max_length=255, help_text="Comma-separated days of the week (e.g., Mon,Tue,Wed)")
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_pools')
-    is_premium = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    is_return_trip = models.BooleanField(_('return trip'), default=False)
+    return_time = models.TimeField(_('return time'), blank=True, null=True)
+    created_at = models.DateTimeField(_('created at'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('updated at'), auto_now=True)
+
+    def __str__(self):
+        return self.name
+
 
 # PoolMember Model
 class PoolMember(models.Model):
     ROLE_CHOICES = [
-        ('Member', 'Member'),
-        ('Admin', 'Admin'),
+        ('Member', _('Member')),
+        ('Driver', _('Driver')),
+        ('Admin', _('Admin')),
+    ]
+    STATUS_CHOICES = [
+        ('Pending', _('Pending')),
+        ('Approved', _('Approved')),
+        ('Rejected', _('Rejected')),
+        ('Leave', _('Leave')),
     ]
 
     pool = models.ForeignKey(Pool, on_delete=models.CASCADE, related_name='members')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pool_memberships')
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='Member')
-    joined_at = models.DateTimeField(auto_now_add=True)
+    role = models.CharField(_('role'), max_length=10, choices=ROLE_CHOICES, default='Member')
+    status = models.CharField(_('status'), max_length=10, choices=STATUS_CHOICES, default='Pending')
+    driving_days = models.CharField(_('driving days'), max_length=255, blank=True, null=True)
+    joined_at = models.DateTimeField(_('joined at'), auto_now_add=True)
+    created_at = models.DateTimeField(_('created at'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('updated at'), auto_now=True)
 
     class Meta:
         unique_together = ('pool', 'user')
 
-# Ride Model
-class Ride(models.Model):
-    STATUS_CHOICES = [
-        ('Scheduled', 'Scheduled'),
-        ('Completed', 'Completed'),
-        ('Cancelled', 'Cancelled'),
-    ]
+    def __str__(self):
+        return f"{self.user.full_name} - {self.pool.name}"
 
-    pool = models.ForeignKey(Pool, on_delete=models.CASCADE, related_name='rides')
-    driver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='driven_rides')
-    scheduled_datetime = models.DateTimeField()
-    pickup_location = models.CharField(max_length=255)
-    dropoff_location = models.CharField(max_length=255)
-    alternate_location = models.CharField(max_length=255, blank=True, null=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Scheduled')
 
-# RideParticipant Model
-class RideParticipant(models.Model):
-    ride = models.ForeignKey(Ride, on_delete=models.CASCADE, related_name='participants')
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ride_requests')
-    kid_name = models.CharField(max_length=255)
-    approved = models.BooleanField(default=False)
+# PickupLocation Model
+class PickupLocation(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pickup_locations')
+    title = models.CharField(_('title'), max_length=100, default='Location')
+    address = models.CharField(_('address'), max_length=500)
+
+    def __str__(self):
+        return self.title
+
 
 # Subscription Model
 class Subscription(models.Model):
     PLAN_CHOICES = [
-        ('Basic', 'Basic'),
-        ('Premium', 'Premium'),
+        ('Basic', _('Basic')),
+        ('Premium', _('Premium')),
     ]
     PAYMENT_METHOD_CHOICES = [
-        ('Stripe', 'Stripe'),
-        ('PayPal', 'PayPal'),
-        ('Other', 'Other'),
+        ('Stripe', _('Stripe')),
+        ('PayPal', _('PayPal')),
+        ('Other', _('Other')),
+    ]
+    STATUS_CHOICES = [
+        ('Active', _('Active')),
+        ('Expired', _('Expired')),
+        ('Cancelled', _('Cancelled')),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='subscriptions')
-    plan_name = models.CharField(max_length=20, choices=PLAN_CHOICES)
-    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, blank=True, null=True)
-    start_date = models.DateField()
-    end_date = models.DateField(blank=True, null=True)
-    status = models.CharField(max_length=20, choices=[('Active', 'Active'), ('Expired', 'Expired'), ('Cancelled', 'Cancelled')], default='Active')
+    plan_name = models.CharField(_('plan name'), max_length=20, choices=PLAN_CHOICES)
+    payment_method = models.CharField(_('payment method'), max_length=20, choices=PAYMENT_METHOD_CHOICES, blank=True, null=True)
+    start_date = models.DateField(_('start date'))
+    end_date = models.DateField(_('end date'), blank=True, null=True)
+    status = models.CharField(_('status'), max_length=20, choices=STATUS_CHOICES, default='Active')
+
+    def __str__(self):
+        return f"{self.user.email} - {self.plan_name}"
