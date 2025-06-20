@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.utils.translation import gettext_lazy as _
+from accounts.models import Children
 
 
 # Custom User Manager
@@ -130,6 +131,7 @@ class PoolMember(models.Model):
 
     pool = models.ForeignKey(Pool, on_delete=models.CASCADE, related_name='members')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pool_memberships')
+    children = models.ManyToManyField(Children, blank=True, related_name='pool_members')
     role = models.CharField(_('role'), max_length=10, choices=ROLE_CHOICES, default='Member')
     status = models.CharField(_('status'), max_length=10, choices=STATUS_CHOICES, default='Pending')
     driving_days = models.CharField(_('driving days'), max_length=255, blank=True, null=True)
