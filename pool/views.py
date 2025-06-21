@@ -8,8 +8,8 @@ from children.models import Children
 from .models import Pool, PoolMember
 class PoolView(APIView):
     permission_classes = [IsAuthenticated]
-
     def get(self, request, pk=None):
+        user = request.user
         if pk:
             try:
                 # Use select_related for ForeignKey
@@ -20,12 +20,15 @@ class PoolView(APIView):
                 return Response({"status": "error", "message": "Pool not found"}, status=status.HTTP_404_NOT_FOUND)
 
         # Use select_related for all pools
-        pools = Pool.objects.select_related('vehicle').all()
+        pools = Pool.objects.select_related('vehicle').filter(user=user)
         serializer = PoolSerializer(pools, many=True)
         return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
 
     def post(self, request):
-        serializer = PoolSerializer(data=request.data)
+        user = request.user  # Authenticated user object
+        data = request.data.copy()  # Create a mutable copy of request.data
+        data['user'] = user.id  # Assign the user ID (primary key) instead of the object
+        serializer = PoolSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response({"status": "success", "data": serializer.data}, status=status.HTTP_201_CREATED)
@@ -67,24 +70,30 @@ class PoolJoinView(APIView):
         try:
             pool = Pool.objects.get(pk=pk)
             user = request.user
-            children_ids = request.data.get('children', [])
-            driving_days = request.data.get('driving_days', [])
+            children_ids = request.data.get('children', '')
+            pickup_location = request.data.get('pickup_location', '')
+            if pickup_location =='' or children_ids =='':
+                return Response({"status": "error", "message": "children and location both field are required."}, status=status.HTTP_404_NOT_FOUND)
             children = Children.objects.filter(id__in=children_ids, user=user)
+            try:
+                check_pool = PoolMember.objects.get(pool=pool,user=user)
+                if check_pool:
+                    return Response({"status": "error", "message": "You have already join this pool"}, status=status.HTTP_404_NOT_FOUND)
+            except:
+                pool_member, created = PoolMember.objects.get_or_create(
+                    pool=pool,
+                    user=user,
+                    pickup_location=pickup_location,
+                    defaults={
+                        'role': 'Member',
+                        'status': 'Pending',
+                    }
+                )
+                pool_member.children.set(children)
+                pool_member.save()
 
-            pool_member, created = PoolMember.objects.get_or_create(
-                pool=pool,
-                user=user,
-                driving_days=driving_days,
-                defaults={
-                    'role': 'Member',
-                    'status': 'Pending',
-                }
-            )
-            pool_member.children.set(children)
-            pool_member.save()
-
-            serializer = PoolJoinSerializer(pool_member)
-            return Response({"status": "success", "data": serializer.data}, status=status.HTTP_201_CREATED)
+                serializer = PoolJoinSerializer(pool_member)
+                return Response({"status": "success", "data": serializer.data}, status=status.HTTP_201_CREATED)
         except Pool.DoesNotExist:
             return Response({"status": "error", "message": "Pool not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -118,10 +127,9 @@ class PoolMemberDetailView(APIView):
         """
         Leave a pool
         """
+
         try:
-            pool_member = PoolMember.objects.get(pk=pk, user=request.user)
-            pool_member.status ='Leave'
-            pool_member.save()
+            pool_member = PoolMember.objects.get(pool=pk, user=request.user).delete()
             return Response({"status": "success", "message": "Left the pool successfully"}, status=status.HTTP_204_NO_CONTENT)
         except PoolMember.DoesNotExist:
             return Response({"status": "error", "message": "Pool member not found or unauthorized"}, status=status.HTTP_404_NOT_FOUND)

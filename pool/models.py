@@ -52,6 +52,7 @@ class PoolMember(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pool_memberships')
     children = models.ManyToManyField(Children, blank=True, related_name='pool_members')
     role = models.CharField(_('role'), max_length=10, choices=ROLE_CHOICES, default='Member')
+    pickup_location = models.CharField(max_length=500,default='')
     status = models.CharField(_('status'), max_length=10, choices=STATUS_CHOICES, default='Pending')
     driving_days = models.CharField(_('driving days'), max_length=255, blank=True, null=True)
     joined_at = models.DateTimeField(_('joined at'), auto_now_add=True)

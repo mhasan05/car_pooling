@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.utils.translation import gettext_lazy as _
+from django.conf import settings
 
 
 # Custom User Manager
@@ -41,6 +42,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     full_name = models.CharField(_('full name'), max_length=255,null=True,blank=True)
     role = models.CharField(_('role'), max_length=20, choices=ROLE_CHOICES, default='Parent')
     subscription_plan = models.CharField(_('subscription plan'), max_length=10, choices=SUBSCRIPTION_PLAN_CHOICES, default='Basic')
+    plan_expired_date = models.DateField(_('Plan Expired'),default=settings.DEFAULT_PLAN_EXPIRATION_DATE)
     profile_picture = models.ImageField(_('profile picture'), upload_to='profile_pictures/', blank=True, null=True)
     contact_number = models.CharField(_('contact number'), max_length=20, blank=True, null=True)
     total_rides = models.PositiveIntegerField(_('total rides'), default=0)

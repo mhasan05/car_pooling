@@ -8,7 +8,7 @@ class PoolSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pool
         fields = [
-            'id', 'name', 'departure_location', 'arrival_location', 
+            'id', 'user', 'name', 'departure_location', 'arrival_location', 
             'vehicle', 'repeat_type', 'scheduled_days', 'start_date', 
             'start_time', 'is_return_trip', 'return_time', 'created_at', 'updated_at'
         ]
@@ -20,5 +20,5 @@ class PoolJoinSerializer(serializers.ModelSerializer):
         model = PoolMember
         fields = [
             'id', 'user', 'pool', 'children', 
-            'role', 'status', 'driving_days', 'joined_at'
+            'role','pickup_location', 'status', 'driving_days', 'joined_at'
         ]

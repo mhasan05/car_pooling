@@ -12,7 +12,7 @@ SECRET_KEY = config('SECRET_KEY')
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='', cast=Csv())
 
-
+DEFAULT_PLAN_EXPIRATION_DATE = '2050-01-01'
 # Application definition
 
 INSTALLED_APPS = [

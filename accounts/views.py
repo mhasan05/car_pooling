@@ -29,11 +29,12 @@ class LoginView(APIView):
 
         user = authenticate(request, email=email, password=password)
 
-        if not user.is_active:
-            return Response({'status':'error', "message": "Please verify your email address."})
 
-        elif user is None:
+        if user is None:
             return Response({'status': 'error', "message": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        elif not user.is_active:
+            return Response({'status':'error', "message": "Please verify your email address."})
 
 
         refresh = RefreshToken.for_user(user)
