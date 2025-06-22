@@ -12,6 +12,7 @@ from django.utils import timezone
 from .send_otp import send_otp
 import random
 import string
+from datetime import timedelta
 
 
 
@@ -104,6 +105,7 @@ class SignupView(APIView):
         try:
             user.set_password(password)
             user.otp = otp
+            user.otp_expired = timezone.now() + timedelta(minutes=5)
             user.save()
             send_email = send_otp(email, otp)
         except:
@@ -132,7 +134,8 @@ class VerifyEmailView(APIView):
             user = User.objects.get(email=email)
         except User.DoesNotExist:
             return Response({"error": "User does not exist."}, status=status.HTTP_404_NOT_FOUND)
-
+        if timezone.now() > user.otp_expired:
+            return Response({"error": "OTP has expired."}, status=status.HTTP_400_BAD_REQUEST)
         if user.is_active:
             return Response(
                 {"status": "error", "message": "Email already verified."},
@@ -164,9 +167,10 @@ class SendOtpView(APIView):
             user = User.objects.get(email=email)
         except User.DoesNotExist:
             return Response({"error": "User does not exist."}, status=status.HTTP_404_NOT_FOUND)
-
+        
         otp = ''.join(random.choices(string.digits, k=6))
         user.otp = otp
+        user.otp_expired = timezone.now() + timedelta(minutes=5)
         user.save()
         send_email = send_otp(email, otp)  # Assuming `send_otp` handles sending the OTP via email
 

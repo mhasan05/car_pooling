@@ -47,6 +47,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     contact_number = models.CharField(_('contact number'), max_length=20, blank=True, null=True)
     total_rides = models.PositiveIntegerField(_('total rides'), default=0)
     otp = models.PositiveIntegerField(_('OTP'), null=True,blank=True)
+    otp_expired = models.DateTimeField(blank=True, null=True)
     is_active = models.BooleanField(_('active status'), default=False)
     is_staff = models.BooleanField(_('staff status'), default=False)
 
