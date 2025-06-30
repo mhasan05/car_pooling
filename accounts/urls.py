@@ -17,4 +17,12 @@ urlpatterns = [
     path('user/', CustomerView.as_view(), name='user_list'),
     path('user/<int:pk>/', CustomerView.as_view(), name='user_detail'),
 
+
+
+    path('add_new_location/', LocationView.as_view(), name='add_new_location'),
+    path('all_location/', LocationView.as_view(), name='all_location'),
+    path('update_location/<int:pk>/', LocationView.as_view(), name='update_location'),
+    path('delete_location/<int:pk>/', LocationView.as_view(), name='delete_location'),
+    path('location/<int:pk>/', LocationView.as_view(), name='location_detail'),
+
 ]

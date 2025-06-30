@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User
+from .models import User,UserPickupLocation
 from vehicle.models import Vehicle
 from vehicle.serializers import VehicleSerializer
 from children.serializers import ChildrenSerializer
@@ -21,9 +21,16 @@ class UserSerializer(serializers.ModelSerializer):
         return [
             {
                 "id": location.id,
-                "pickup_location": location.pickup_location,
+                "pickup_location_lat": location.pickup_location_lat,
+                "pickup_location_lng": location.pickup_location_lng,
+                "address": location.address,
                 "created_on": location.created_on,
                 "updated_on": location.updated_on
             }
             for location in obj.pickup_location.all()
         ]
+
+class pickupLocationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserPickupLocation
+        fields = ['id','user', 'pickup_location_lat', 'pickup_location_lng','address', 'created_on', 'updated_on']

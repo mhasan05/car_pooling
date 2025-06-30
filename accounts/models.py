@@ -18,6 +18,7 @@ class CustomUserManager(BaseUserManager):
     def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('is_active', True)
 
         if not extra_fields.get('is_staff'):
             raise ValueError(_('Superuser must have is_staff=True.'))
@@ -65,9 +66,11 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 class UserPickupLocation(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pickup_location')
-    pickup_location = models.CharField(max_length=100)
+    pickup_location_lat = models.CharField(max_length=100,default=0)
+    pickup_location_lng = models.CharField(max_length=100,default=0)
+    address = models.CharField(max_length=255, null=True, blank=True)
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.pickup_location
+        return str(self.user)

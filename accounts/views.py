@@ -1,6 +1,6 @@
 from rest_framework import viewsets
 from .models import User
-from .serializers import UserSerializer
+from .serializers import *
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -13,7 +13,8 @@ from .send_otp import send_otp
 import random
 import string
 from datetime import timedelta
-
+from .models import UserPickupLocation
+from geopy.geocoders import Nominatim
 
 
 
@@ -136,11 +137,11 @@ class VerifyEmailView(APIView):
             return Response({"error": "User does not exist."}, status=status.HTTP_404_NOT_FOUND)
         if timezone.now() > user.otp_expired:
             return Response({"error": "OTP has expired."}, status=status.HTTP_400_BAD_REQUEST)
-        if user.is_active:
-            return Response(
-                {"status": "error", "message": "Email already verified."},
-                status=status.HTTP_200_OK,
-            )
+        # if user.is_active:
+        #     return Response(
+        #         {"status": "error", "message": "Email already verified."},
+        #         status=status.HTTP_200_OK,
+        #     )
 
         elif str(user.otp) == otp:
             user.is_active = True
@@ -264,11 +265,56 @@ class UserProfileView(APIView):
             return Response({'status': 'error',"message": "User profile not found."}, status=status.HTTP_404_NOT_FOUND)
         
     def patch(self, request):
-        customer = request.user  # Access the current logged-in user
-        serializer = UserSerializer(customer, data=request.data, partial=True)
+        user = request.user  # Get the current logged-in user
+        data = request.data.copy()  
+        data['user'] = user.id 
+        pickup_location_lat = request.data.get('pickup_location_lat', '')
+        pickup_location_lng = request.data.get('pickup_location_lng', '')
+
+        # Check if the location already exists
+        check_location = UserPickupLocation.objects.filter(
+            user=user,
+            pickup_location_lat=pickup_location_lat,
+            pickup_location_lng=pickup_location_lng
+        )
+        if check_location.exists():
+            return Response({"error": "Address already exists"}, status=status.HTTP_400_BAD_REQUEST)
+
+        geolocator = Nominatim(user_agent="CarPoolingApp")
+        try:
+            location = geolocator.reverse(f"{pickup_location_lat}, {pickup_location_lng}", exactly_one=True, language="en")
+            if location:
+                # Parse address into components
+                address_details = location.raw.get('address', {})
+                # Shorten the address by selecting key components
+                short_address = ", ".join([
+                    address_details.get('house_number'),
+                    address_details.get('road'),
+                    address_details.get('suburb'),
+                    address_details.get('city'),
+                    address_details.get('country')
+                ]).strip(", ")
+                data['address'] = short_address
+            else:
+                data['address'] = None
+        except Exception as e:
+            print(f"Geolocation Error: {e}")
+            data['address'] = None
+        
+        serializer = UserSerializer(user, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
+            
+            # Save pickup location if provided
+            if pickup_location_lat and pickup_location_lng:
+                UserPickupLocation.objects.create(
+                    user=user,
+                    address=data['address'],
+                    pickup_location_lat=pickup_location_lat,
+                    pickup_location_lng=pickup_location_lng
+                )
             return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
+        
         return Response({"status": "error", "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -297,3 +343,104 @@ class CustomerView(APIView):
             return Response({"status": "success", "message": "Customer deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
         except User.DoesNotExist:
             return Response({"status": "error", "message": "Customer not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+
+
+class LocationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk=None):
+        user = request.user
+        if pk:
+            try:
+                location = UserPickupLocation.objects.get(pk=pk,user=user)
+                serializer = pickupLocationSerializer(location)
+                return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
+            except:
+                return Response({"status": "error", "message": "Pickup Location not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        location = UserPickupLocation.objects.filter(user=user)
+        serializer = pickupLocationSerializer(location, many=True)
+        return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        user = request.user  
+        data = request.data.copy()  
+        data['user'] = user.id  
+        pickup_location_lat = data.get('pickup_location_lat', '')
+        pickup_location_lng = data.get('pickup_location_lng', '')
+        if not pickup_location_lat or not pickup_location_lng:
+            return Response({"status": "error", "message": "Pickup location latitude and longitude are required"}, status=status.HTTP_400_BAD_REQUEST)
+        check_location = UserPickupLocation.objects.filter(user=user,pickup_location_lat=pickup_location_lat,pickup_location_lng=pickup_location_lng)
+        if check_location:
+            return Response({"status": "error", "message": "Pickup location already exists"}, status=status.HTTP_400_BAD_REQUEST)
+        # Use Nominatim to get the address from latitude and longitude
+        geolocator = Nominatim(user_agent="CarPoolingApp")
+        try:
+            location = geolocator.reverse(f"{pickup_location_lat}, {pickup_location_lng}", exactly_one=True, language="en")
+            if location:
+                # Parse address into components
+                address_details = location.raw.get('address', {})
+                # Shorten the address
+                short_address = ", ".join(filter(None, [
+                    address_details.get('house_number'),
+                    address_details.get('road'),
+                    address_details.get('suburb'),
+                    address_details.get('city'),
+                    address_details.get('country')
+                ]))
+                data['address'] = short_address
+            else:
+                data['address'] = None
+        except Exception as e:
+            return Response({
+                "status": "error", 
+                "message": f"Failed to get address: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        serializer = pickupLocationSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"status": "success", "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response({"status": "error", "data": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, pk=None):
+        user = request.user 
+        data = request.data.copy() 
+        data['user'] = user.id  
+        pickup_location_lat = data.get('pickup_location_lat', '')
+        pickup_location_lng = data.get('pickup_location_lng', '')
+        if not pickup_location_lat or not pickup_location_lng:
+            return Response({"status": "error", "message": "Pickup location latitude and longitude are required"}, status=status.HTTP_400_BAD_REQUEST)
+        check_location = UserPickupLocation.objects.filter(user=user,pickup_location_lat=pickup_location_lat,pickup_location_lng=pickup_location_lng)
+        if check_location:
+            return Response({"status": "error", "message": "Pickup location already exists"}, status=status.HTTP_400_BAD_REQUEST)
+        # Use Nominatim to get the address from latitude and longitude
+        geolocator = Nominatim(user_agent="CarPoolingApp")
+        try:
+            location = geolocator.reverse(f"{pickup_location_lat}, {pickup_location_lng}", exactly_one=True, language="en")
+            address = location.address if location else None
+        except Exception as e:
+            return Response({"status": "error", "message": f"Failed to get address: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        data['address'] = address
+        if not pk:
+            return Response({"status": "error", "message": "Location ID is required for update"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            location = UserPickupLocation.objects.get(pk=pk,user=user)
+        except :
+            return Response({"status": "error", "message": "Pickup Location not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = pickupLocationSerializer(location, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
+        return Response({"status": "error", "data": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk=None):
+        user = request.user
+        try:
+            location = UserPickupLocation.objects.get(pk=pk,user=user)
+            location.delete()
+            return Response({"status": "success", "message": "UserPickupLocation deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        except:
+            return Response({"status": "error", "message": "UserPickupLocation not found"}, status=status.HTTP_404_NOT_FOUND)
