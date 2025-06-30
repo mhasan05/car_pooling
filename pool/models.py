@@ -14,6 +14,13 @@ class Pool(models.Model):
         ('Custom', _('Custom')),
     ]
 
+    STATUS_CHOICES = [
+        ('Active', _('Active')),
+        ('Inactive', _('Inactive')),
+        ('Completed', _('Completed')),
+        ('Cancelled', _('Cancelled')),
+    ]
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pools_created')
     name = models.CharField(_('pool name'), max_length=255)
     departure_location = models.CharField(_('departure location'), max_length=255)
@@ -24,6 +31,7 @@ class Pool(models.Model):
     start_date = models.DateField(auto_now_add=True)
     start_time = models.TimeField(auto_now_add=True)
     is_return_trip = models.BooleanField(_('return trip'), default=False)
+    status = models.CharField(_('status'), max_length=20,choices=STATUS_CHOICES, default='Active')
     return_time = models.TimeField(_('return time'), blank=True, null=True)
     created_at = models.DateTimeField(_('created at'), auto_now_add=True)
     updated_at = models.DateTimeField(_('updated at'), auto_now=True)

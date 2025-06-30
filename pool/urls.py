@@ -9,6 +9,7 @@ urlpatterns = [
     path('update_pool/<int:pk>/', PoolView.as_view(), name='update_pool'),
     path('delete_pool/<int:pk>/', PoolView.as_view(), name='delete_pool'),
     path('pool/<int:pk>/', PoolView.as_view(), name='pool_detail'),
+    path('driver/', DriverPoolsAPIView.as_view(), name='driver-pools'),
 
 
 

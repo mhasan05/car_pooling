@@ -258,3 +258,16 @@ class ChildrenAndLocationView(APIView):
                 "location": location_serializer.data
             }
         }, status=status.HTTP_200_OK)
+    
+
+class DriverPoolsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Filter pools where the user is a driver
+        driver_pools = Pool.objects.filter(members__user=request.user, members__role='Driver')
+
+        # Serialize the filtered pools
+        serializer = PoolSerializer(driver_pools, many=True)
+        return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
+    
