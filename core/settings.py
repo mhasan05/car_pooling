@@ -27,6 +27,9 @@ INSTALLED_APPS = [
     'vehicle',
     'children',
     'pool',
+    'settings',
+    'channels',
+    'chat',
 ]
 
 MIDDLEWARE = [
@@ -57,8 +60,17 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'core.wsgi.application'
+# Channels configuration
+ASGI_APPLICATION = 'core.asgi.application'
 AUTH_USER_MODEL = 'accounts.User'
 
+# Redis setup for Channels
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',

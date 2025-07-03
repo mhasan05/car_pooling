@@ -9,6 +9,7 @@ from .models import Pool, PoolMember
 from accounts.models import UserPickupLocation
 from children.serializers import ChildrenSerializer
 from accounts.serializers import pickupLocationSerializer
+from django.db.models import Q
 
 
 class PoolView(APIView):
@@ -271,3 +272,35 @@ class DriverPoolsAPIView(APIView):
         serializer = PoolSerializer(driver_pools, many=True)
         return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
     
+class PoolSearchView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        Search for pools by pool name or user name.
+        """
+        query = request.query_params.get('q', '')  # Get the search query from request
+        if not query:
+            return Response(
+                {"status": "error", "message": "Query parameter 'q' is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Search for pools by pool name or user name
+            pools = Pool.objects.filter(
+                Q(name__icontains=query)  # Case-insensitive search for pool name
+            ).distinct()
+
+            # Serialize the results
+            serializer = PoolSerializer(pools, many=True)
+            return Response(
+                {"status": "success", "query": query, "data": serializer.data},
+                status=status.HTTP_200_OK
+            )
+
+        except Exception as e:
+            return Response(
+                {"status": "error", "message": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

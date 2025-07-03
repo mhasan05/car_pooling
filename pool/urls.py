@@ -5,6 +5,9 @@ urlpatterns = [
     path('add_new_pool/', PoolView.as_view(), name='add_new_pool'),
     path('all_pool/', PoolView.as_view(), name='all_pool'),
     path('all_pool/', MyPoolView.as_view(), name='all_pool'),
+
+    path('search/', PoolSearchView.as_view(), name='pool_search'),
+
     path('my_pool/', MyPoolView.as_view(), name='my_pool'),
     path('update_pool/<int:pk>/', PoolView.as_view(), name='update_pool'),
     path('delete_pool/<int:pk>/', PoolView.as_view(), name='delete_pool'),
