@@ -1,17 +1,13 @@
+# chat/serializers.py
+
 from rest_framework import serializers
-from .models import Message, ChatRoom, MessageImage
+from .models import *
 
-class MessageImageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MessageImage
-        fields = ['id', 'image']
-
-class MessageSerializer(serializers.ModelSerializer):
-    images = MessageImageSerializer(many=True, read_only=True)
-
+class ChatMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Message
-        fields = ['id', 'sender', 'content', 'images', 'timestamp']
+        fields = ['id', 'room', 'sender', 'content', 'images', 'timestamp']  # include 'room'
+
 
 class ChatRoomSerializer(serializers.ModelSerializer):
     class Meta:

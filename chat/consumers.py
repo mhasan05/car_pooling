@@ -21,7 +21,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         data = json.loads(text_data)
         message = data.get('message', '')
         sender_id = data['sender']
-        image_ids = data.get('image_ids', [])  # List of uploaded image IDs
+        image_ids = data.get('image_ids', [])
 
         await self.save_message(self.room_id, sender_id, message, image_ids)
 

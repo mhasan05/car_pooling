@@ -1,6 +1,9 @@
+# chat/urls.py
+
 from django.urls import path
-from .views import UploadImageView
+from .views import ChatRoomView, ChatMessageView
 
 urlpatterns = [
-    path('upload-images/', UploadImageView.as_view(), name='upload-images'),
+    path('rooms/', ChatRoomView.as_view(), name='chat-room'),
+    path('messages/<int:room_id>/', ChatMessageView.as_view(), name='chat-messages'),
 ]
