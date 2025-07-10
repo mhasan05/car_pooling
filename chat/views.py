@@ -31,14 +31,28 @@ class ChatRoomView(APIView):
         if not user2_id:
             return Response({"error": "user2 is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        if user1.id == user2_id:
+        if user1.id == int(user2_id):
             return Response({"error": "You cannot create a room with yourself"}, status=status.HTTP_400_BAD_REQUEST)
 
-        user2 = User.objects.get(id=user2_id)
+        try:
+            user2 = User.objects.get(id=user2_id)
+        except User.DoesNotExist:
+            return Response({"error": "User2 not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        room, created = ChatRoom.objects.get_or_create(user1=user1, user2=user2)
+        # Check if room exists for either user order
+        room = ChatRoom.objects.filter(
+            (Q(user1=user1) & Q(user2=user2)) | (Q(user1=user2) & Q(user2=user1))
+        ).first()
+
+        if room:
+            created = False
+        else:
+            room = ChatRoom.objects.create(user1=user1, user2=user2)
+            created = True
+
         serializer = ChatRoomSerializer(room)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        return Response(serializer.data, status=status_code)
 
 
 class ChatMessageView(APIView):

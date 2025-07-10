@@ -318,7 +318,6 @@ class UserProfileView(APIView):
         return Response({"status": "error", "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
-
 class CustomerView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -332,8 +331,9 @@ class CustomerView(APIView):
                 return Response({"status": "error", "message": "Customer not found"}, status=status.HTTP_404_NOT_FOUND)
 
         customers = User.objects.all()
+        all_customers = User.objects.all().count()
         serializer = UserSerializer(customers, many=True)
-        return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
+        return Response({"status": "success", "total": all_customers, "data": serializer.data}, status=status.HTTP_200_OK)
 
 
     def delete(self, request, pk=None):
@@ -343,7 +343,6 @@ class CustomerView(APIView):
             return Response({"status": "success", "message": "Customer deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
         except User.DoesNotExist:
             return Response({"status": "error", "message": "Customer not found"}, status=status.HTTP_404_NOT_FOUND)
-        
 
 
 class LocationView(APIView):
