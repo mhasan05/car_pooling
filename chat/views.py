@@ -18,8 +18,10 @@ class ChatRoomView(APIView):
         Get all chat rooms the current user is part of.
         """
         rooms = ChatRoom.objects.filter(user1=request.user) | ChatRoom.objects.filter(user2=request.user)
-        serializer = ChatRoomSerializer(rooms, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        if rooms.exists():
+            serializer = ChatRoomSerializer(rooms, many=True, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"message": "No chat rooms found"}, status=status.HTTP_404_NOT_FOUND)
 
     def post(self, request):
         """
@@ -50,7 +52,8 @@ class ChatRoomView(APIView):
             room = ChatRoom.objects.create(user1=user1, user2=user2)
             created = True
 
-        serializer = ChatRoomSerializer(room)
+        serializer = ChatRoomSerializer(room, context={'request': request})
+
         status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
         return Response(serializer.data, status=status_code)
 
@@ -62,11 +65,14 @@ class ChatMessageView(APIView):
         """
         Get all messages in a chat room.
         """
-        try:
-            room = ChatRoom.objects.filter(Q(room_id=room_id) & (Q(user1=request.user) | Q(user2=request.user))).first()
+        room = ChatRoom.objects.filter(Q(room_id=room_id) & (Q(user1=request.user) | Q(user2=request.user))).first()
+        if room:
+            for message in room.messages.filter(is_seen=False):
+                message.is_seen = True
+                message.save()  # Mark messages as seen
             serializer = ChatMessageSerializer(room.messages, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
-        except ChatRoom.DoesNotExist:
+        else:
             return Response({"error": "Chat room not found or access denied"}, status=status.HTTP_404_NOT_FOUND)
 
     def post(self, request, room_id):

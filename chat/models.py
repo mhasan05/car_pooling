@@ -15,7 +15,11 @@ class Message(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE)
     content = models.TextField(blank=True)
     images = models.ImageField(upload_to='chat/', blank=True, null=True)
+    is_seen = models.BooleanField(default=False)
     timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.sender}: {self.content}"
 
 class MessageImage(models.Model):
     image = models.ImageField(upload_to='chat/images/')
